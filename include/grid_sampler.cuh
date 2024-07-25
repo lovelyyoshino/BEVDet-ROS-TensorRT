@@ -25,7 +25,7 @@ struct TensorDesc {
 
 
 inline int GET_BLOCKS(const int N) {
-  int optimal_block_num = DIVUP(N, NUM_THREADS);
+  int optimal_block_num = DIVUP(N, NUM_THREADS_Det);
   int max_block_num = 4096;
   return std::min(optimal_block_num, max_block_num);
 }

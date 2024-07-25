@@ -369,11 +369,11 @@ void grid_sample(T *output, const T *input, const T *grid, int *output_dims, int
   }
 
   if (nb_dims == 4) {
-    grid_sampler_2d_kernel<T><<<GET_BLOCKS(count), NUM_THREADS, 0, stream>>>(
+    grid_sampler_2d_kernel<T><<<GET_BLOCKS(count), NUM_THREADS_Det, 0, stream>>>(
         count, input, grid, output, input_desc, grid_desc, output_desc, interp, padding,
         align_corners);
   } else if (nb_dims == 5) {
-    grid_sampler_3d_kernel<T><<<GET_BLOCKS(count), NUM_THREADS, 0, stream>>>(
+    grid_sampler_3d_kernel<T><<<GET_BLOCKS(count), NUM_THREADS_Det, 0, stream>>>(
         count, input, grid, output, input_desc, grid_desc, output_desc, interp, padding,
         align_corners);
   } else {
@@ -411,8 +411,8 @@ void compute_sample_grid_cuda(float* grid_dev, const float* transform, int bev_w
     grid_dev : bev_w * bev_h * 2
     */
 
-    dim3 grid(DIVUP(bev_w * bev_h, NUM_THREADS));
-    dim3 block(NUM_THREADS);
+    dim3 grid(DIVUP(bev_w * bev_h, NUM_THREADS_Det));
+    dim3 block(NUM_THREADS_Det);
     compute_sample_grid_kernel<<<grid, block, 0, stream>>>(grid_dev, transform, bev_w, bev_h);
 
 }

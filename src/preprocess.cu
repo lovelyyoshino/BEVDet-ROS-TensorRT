@@ -236,6 +236,6 @@ __global__ void convert_RGBHWC_to_BGRCHW_kernel(uchar *input, uchar *output,
 void convert_RGBHWC_to_BGRCHW(uchar *input, uchar *output, 
                                                         int channels, int height, int width)
                                                         {
-    convert_RGBHWC_to_BGRCHW_kernel<<< DIVUP(channels * height * width, NUM_THREADS), NUM_THREADS>>>
+    convert_RGBHWC_to_BGRCHW_kernel<<< DIVUP(channels * height * width, NUM_THREADS_Det), NUM_THREADS_Det>>>
                                                             (input, output, channels, height, width);
 }

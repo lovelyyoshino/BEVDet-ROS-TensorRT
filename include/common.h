@@ -12,7 +12,7 @@ typedef unsigned char uchar;
 // using MACRO to allocate memory inside CUDA kernel
 #define NUM_3D_BOX_CORNERS 8
 #define NUM_2D_BOX_CORNERS 4
-#define NUM_THREADS 64 //  need to be changed when num_threads is changed
+#define NUM_THREADS_Det 64 //  need to be changed when NUM_THREADS_Det is changed
 
 #define CHECK_CUDA(ans) { GPUAssert((ans), __FILE__, __LINE__); }
 

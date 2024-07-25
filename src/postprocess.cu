@@ -158,9 +158,9 @@ void PostprocessGPU::DoPostprocess(void ** const bev_buffer, std::vector<Box>& o
         float* vel = (float*)bev_buffer[i * 6 + 5];     // 2 x 128 x 128
         float* heatmap = (float*)bev_buffer[i * 6 + 6]; // c x 128 x 128
 
-        dim3 grid(DIVUP(map_size, NUM_THREADS));
+        dim3 grid(DIVUP(map_size, NUM_THREADS_Det));
         CHECK_CUDA(cudaMemset(valid_box_num, 0, sizeof(int)));
-        BEVDecodeObjectKernel<<<grid, NUM_THREADS>>>(map_size, score_thresh, 
+        BEVDecodeObjectKernel<<<grid, NUM_THREADS_Det>>>(map_size, score_thresh, 
                                          x_start, y_start, x_step, y_step, output_h,
                                          output_w, down_sample, class_num_pre_task[i],
                                          cur_start_label, reg, hei, dim, rot, 
