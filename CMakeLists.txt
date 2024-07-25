@@ -23,8 +23,8 @@ if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL  "aarch64")       # orin
   set(TENSORRT_INCLUDE_DIRS /usr/include/aarch64-linux-gnu/)
   set(TENSORRT_LIBRARY_DIRS /usr/lib/aarch64-linux-gnu/)
 elseif(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-  set(TENSORRT_INCLUDE_DIRS ~/software/TensorRT-8.5.3.1/include)  # your tensorrt path
-  set(TENSORRT_LIBRARY_DIRS ~/software/TensorRT-8.5.3.1/lib)
+  set(TENSORRT_INCLUDE_DIRS ~/TensorRT-8.6.1.6/include)  # your tensorrt path
+  set(TENSORRT_LIBRARY_DIRS ~/TensorRT-8.6.1.6/lib)
 endif()
 
 find_library(NVJPEG_LIBRARY nvjpeg ${CUDA_LIB_DIRS})
