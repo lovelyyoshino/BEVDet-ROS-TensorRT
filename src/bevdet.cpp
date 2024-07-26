@@ -229,15 +229,15 @@ void BEVDet::MallocDeviceMemory(){
     CHECK_CUDA(cudaMalloc((void**)&src_imgs_dev, 
                                 N_img * 3 * src_img_h * src_img_w * sizeof(uchar)));
 
-    imgstage_buffer = (void**)new void*[imgstage_engine->getNbBindings()];//分配存储原始图像数据的设备内存 src_imgs_dev
+    imgstage_buffer = (void**)new void*[imgstage_engine->getNbBindings()];//分配存储原始图像数据的设备内存 src_imgs_dev,getNbBindings这个函数返回引擎中绑定的数据的数量，关键点3
     for(int i = 0; i < imgstage_engine->getNbBindings(); i++){
-        nvinfer1::Dims32 dim = imgstage_context->getBindingDimensions(i);//获取绑定的维度信息
+        nvinfer1::Dims32 dim = imgstage_context->getBindingDimensions(i);//getBindingDimensions获取绑定的维度信息
         int size = 1;
-        for(int j = 0; j < dim.nbDims; j++){
+        for(int j = 0; j < dim.nbDims; j++){//nbDims表示维度的数量
             size *= dim.d[j];//计算维度的乘积
         }
-        size *= dataTypeToSize(imgstage_engine->getBindingDataType(i));//计算数据类型的大小
-        CHECK_CUDA(cudaMalloc(&imgstage_buffer[i], size));
+        size *= dataTypeToSize(imgstage_engine->getBindingDataType(i));//计算数据类型的大小，getBindingDataType获取绑定的数据类型
+        CHECK_CUDA(cudaMalloc(&imgstage_buffer[i], size));//使用 cudaMalloc 分配内存
     }
 
     std::cout << "img num binding : " << imgstage_engine->getNbBindings() << std::endl;
@@ -264,20 +264,21 @@ void BEVDet::InitViewTransformer(){
     int num_points = N_img * depth_num * feat_h * feat_w;
     Eigen::Vector3f* frustum = new Eigen::Vector3f[num_points];//初始化 frustum 点云数据结构
 
-    for(int i = 0; i < N_img; i++){
-        for(int d_ = 0; d_ < depth_num; d_++){
+    for(int i = 0; i < N_img; i++){//遍历所有相机
+        for(int d_ = 0; d_ < depth_num; d_++){//遍历深度
             for(int h_ = 0; h_ < feat_h; h_++){
                 for(int w_ = 0; w_ < feat_w; w_++){
                     int offset = i * depth_num * feat_h * feat_w + d_ * feat_h * feat_w
-                                                                 + h_ * feat_w + w_;
+                                                                 + h_ * feat_w + w_;//计算偏移量
                     (frustum + offset)->x() = (float)w_ * (input_img_w - 1) / (feat_w - 1);
                     (frustum + offset)->y() = (float)h_ * (input_img_h - 1) / (feat_h - 1);
                     (frustum + offset)->z() = (float)d_ * depth_step + depth_start;
 
                     // eliminate post transformation
-                    *(frustum + offset) -= post_trans.translation();
-                    *(frustum + offset) = post_rot.inverse() * *(frustum + offset);
-                    // 
+                    *(frustum + offset) -= post_trans.translation();//将 frustum 中的点转换为原始图像坐标系
+                    *(frustum + offset) = post_rot.inverse() * *(frustum + offset);//将 frustum 中的点转换为原始图像坐标系
+
+                    //将转到的原始图像坐标系的点转换为相机坐标系
                     (frustum + offset)->x() *= (frustum + offset)->z();
                     (frustum + offset)->y() *= (frustum + offset)->z();
                     // img to ego -> rot -> trans
@@ -294,8 +295,8 @@ void BEVDet::InitViewTransformer(){
         }
     }
 
-    int* _ranks_depth = new int[num_points];
-    int* _ranks_feat = new int[num_points];
+    int* _ranks_depth = new int[num_points];//初始化深度和特征的排序
+    int* _ranks_feat = new int[num_points];//初始化特征排序数组
 
     for(int i = 0; i < num_points; i++){
         _ranks_depth[i] = i;
@@ -304,11 +305,12 @@ void BEVDet::InitViewTransformer(){
         for(int d_ = 0; d_ < depth_num; d_++){
             for(int u = 0; u < feat_h * feat_w; u++){
                 int offset = i * (depth_num * feat_h * feat_w) + d_ * (feat_h * feat_w) + u;
-                _ranks_feat[offset] = i * feat_h * feat_w + u;
+                _ranks_feat[offset] = i * feat_h * feat_w + u;//这里算出在多张图对应的像素点
             }
         }
     }
 
+    //筛选有效点,即位于体素网格内部的点，并将其索引存储在 kept 向量中。
     std::vector<int> kept;
     for(int i = 0; i < num_points; i++){
         if((int)(frustum + i)->x() >= 0 && (int)(frustum + i)->x() < xgrid_num &&
@@ -325,16 +327,16 @@ void BEVDet::InitViewTransformer(){
     int* order = new int[valid_feat_num];
 
     for(int i = 0; i < valid_feat_num; i++){
-        Eigen::Vector3f &p = frustum[kept[i]];
+        Eigen::Vector3f &p = frustum[kept[i]];//将 frustum 中的世界坐标系点
         ranks_bev_host[i] = (int)p.z() * xgrid_num * ygrid_num + 
-                            (int)p.y() * xgrid_num + (int)p.x();
+                            (int)p.y() * xgrid_num + (int)p.x();//计算在 BEV 图像中的位置
         order[i] = i;
     }
 
-    thrust::sort_by_key(ranks_bev_host, ranks_bev_host + valid_feat_num, order);
+    thrust::sort_by_key(ranks_bev_host, ranks_bev_host + valid_feat_num, order);//按照 ranks_bev_host 排序。得到的是对应位置的索引
     for(int i = 0; i < valid_feat_num; i++){
         ranks_depth_host[i] = _ranks_depth[kept[order[i]]];
-        ranks_feat_host[i] = _ranks_feat[kept[order[i]]];
+        ranks_feat_host[i] = _ranks_feat[kept[order[i]]];//获取排序后的点
     }
 
     delete[] _ranks_depth;
@@ -342,13 +344,14 @@ void BEVDet::InitViewTransformer(){
     delete[] frustum;
     delete[] order;
 
+    //计算间隔的开始位置和长度
     std::vector<int> interval_starts_host;
     std::vector<int> interval_lengths_host;
 
     interval_starts_host.push_back(0);
     int len = 1;
     for(int i = 1; i < valid_feat_num; i++){
-        if(ranks_bev_host[i] != ranks_bev_host[i - 1]){
+        if(ranks_bev_host[i] != ranks_bev_host[i - 1]){//如果两个点不在同一个体素网格内
             interval_starts_host.push_back(i);
             interval_lengths_host.push_back(len);
             len=1;
@@ -360,7 +363,7 @@ void BEVDet::InitViewTransformer(){
     
     interval_lengths_host.push_back(len);
     unique_bev_num = interval_lengths_host.size();
-
+    //将数据拷贝到 GPU
     CHECK_CUDA(cudaMalloc((void**)&ranks_bev_dev, valid_feat_num * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&ranks_depth_dev, valid_feat_num * sizeof(int)));
     CHECK_CUDA(cudaMalloc((void**)&ranks_feat_dev, valid_feat_num * sizeof(int)));
@@ -468,7 +471,7 @@ int BEVDet::DeserializeTRTEngine(const std::string &engine_file,
     engine_stream << file.rdbuf();
     file.close();
 
-    nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(g_logger);//创建 TensorRT 运行时
+    nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(g_logger);//创建 TensorRT 运行时，关键点1
     if (runtime == nullptr) 
     {
         // std::string msg("Failed to build runtime parser!");
@@ -480,11 +483,11 @@ int BEVDet::DeserializeTRTEngine(const std::string &engine_file,
     engine_stream.seekg(0, std::ios::end);
     const int engine_size = engine_stream.tellg();
 
-    engine_stream.seekg(0, std::ios::beg); 
-    void* engine_str = malloc(engine_size);
+    engine_stream.seekg(0, std::ios::beg); //获取引擎数据的大小
+    void* engine_str = malloc(engine_size);//分配内存
     engine_stream.read((char*)engine_str, engine_size);
     
-    nvinfer1::ICudaEngine *engine = runtime->deserializeCudaEngine(engine_str, engine_size, NULL);//使用 TensorRT 运行时反序列化引擎数据
+    nvinfer1::ICudaEngine *engine = runtime->deserializeCudaEngine(engine_str, engine_size, NULL);//使用 TensorRT 运行时反序列化引擎数据，关键点2
     if (engine == nullptr) 
     {
         // std::string msg("Failed to build engine parser!");
@@ -494,7 +497,7 @@ int BEVDet::DeserializeTRTEngine(const std::string &engine_file,
 
         return EXIT_FAILURE;
     }
-    *engine_ptr = engine;
+    *engine_ptr = engine;//转为ptr指针传出去
     for (int bi = 0; bi < engine->getNbBindings(); bi++) {
         if (engine->bindingIsInput(bi) == true){//检查反序列化是否成功，并打印引擎绑定信息
             printf("Binding %d (%s): Input. \n", bi, engine->getBindingName(bi));
@@ -669,19 +672,19 @@ int BEVDet::DoInfer(const camsData& cam_data, std::vector<Box> &out_detections, 
     preprocess(src_imgs_dev, (float*)imgstage_buffer[imgbuffer_map["images"]], N_img, src_img_h, src_img_w,
         input_img_h, input_img_w, resize_radio, resize_radio, crop_h, crop_w, mean, std, pre_sample);//包括图像数据的拷贝、图像预处理（如调整尺寸、裁剪和归一化）以及初始化深度信息
 
-    // 初始化深度
+    // 初始化深度，将处理好的值放在imgstage_buffer中
     InitDepth(cam_data.param.cams2ego_rot, cam_data.param.cams2ego_trans, cam_data.param.cams_intrin);//使用 TensorRT 进行图像阶段的推理
 
-    CHECK_CUDA(cudaDeviceSynchronize());
+    CHECK_CUDA(cudaDeviceSynchronize());//等待所有的流操作完成
 
     // 预处理时间
     auto pre_end = high_resolution_clock::now();
 
     // [STEP 2] : image stage network forward
     cudaStream_t stream;
-    CHECK_CUDA(cudaStreamCreate(&stream));
+    CHECK_CUDA(cudaStreamCreate(&stream));//创建流
     
-    if(!imgstage_context->enqueueV2(imgstage_buffer, stream, nullptr))
+    if(!imgstage_context->enqueueV2(imgstage_buffer, stream, nullptr))//使用 TensorRT 进行图像阶段的推理，对应图像engine，处理完会返回到imgstage_buffer中，stream作用是异步执行
     {
         printf("Image stage forward failing!\n");
     }

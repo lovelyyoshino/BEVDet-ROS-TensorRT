@@ -176,6 +176,22 @@ __global__ void fill_in_kernel(float* array, float num){
     array[offset] = num;
 }
 
+/// @brief 到GPU上完成图像的预处理
+/// @param src_imgs 原图像
+/// @param dst_imgs 预处理后的图像
+/// @param n_img 图像数量
+/// @param src_img_h 原图像高度
+/// @param src_img_w 原图像宽度
+/// @param dst_img_h 目标图像高度
+/// @param dst_img_w   目标图像宽度
+/// @param resize_radio_h 重设图像高度的比例
+/// @param resize_radio_w 重设图像宽度的比例
+/// @param crop_h 裁剪高度
+/// @param crop_w 裁剪宽度
+/// @param mean 平均值
+/// @param std 标准差
+/// @param sample 采样方式
+/// @return 
 int preprocess(const uchar* src_imgs, float* dst_imgs, int n_img, int src_img_h,
                 int src_img_w, int dst_img_h, int dst_img_w, float resize_radio_h, 
                 float resize_radio_w, int crop_h, int crop_w, triplet mean, 
@@ -207,7 +223,7 @@ int preprocess(const uchar* src_imgs, float* dst_imgs, int n_img, int src_img_h,
         preprocess_bicubic_kernel<<<grid, block>>>(src_imgs, dst_imgs, src_row_step, 
                                 dst_row_step, src_img_step, dst_img_step, src_img_h, 
                                 src_img_w, resize_radio_h, resize_radio_w, offset_h, 
-                                                                offset_w, mean, std);
+                                                                offset_w, mean, std);//使用bicubic插值
     }
     else if(sample == Sampler::nearest){
         // printf("sampler : nearest\n");
@@ -232,10 +248,15 @@ __global__ void convert_RGBHWC_to_BGRCHW_kernel(uchar *input, uchar *output,
         output[c * height * width + y * width + x] = input[index];
     }
 }
-// RGBHWC to BGRCHW
+/// @brief RGBHWC格式转为BGRCHW
+/// @param input 输入的图像数据GPU
+/// @param output 输出的图像数据GPU
+/// @param channels 通道数
+/// @param height 图像高度
+/// @param width 图像宽度
 void convert_RGBHWC_to_BGRCHW(uchar *input, uchar *output, 
                                                         int channels, int height, int width)
                                                         {
     convert_RGBHWC_to_BGRCHW_kernel<<< DIVUP(channels * height * width, NUM_THREADS_Det), NUM_THREADS_Det>>>
-                                                            (input, output, channels, height, width);
+                                                            (input, output, channels, height, width);//这样写是为了保证每个线程都有工作
 }

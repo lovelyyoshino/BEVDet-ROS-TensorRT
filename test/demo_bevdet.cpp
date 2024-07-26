@@ -144,7 +144,7 @@ void TestSample(YAML::Node &config){
 
     BEVDet bevdet(model_config, img_N, sampleData.param.cams_intrin, 
                 sampleData.param.cams2ego_rot, sampleData.param.cams2ego_trans, 
-                                                    imgstage_file, bevstage_file);
+                                                    imgstage_file, bevstage_file);//bevdet的格式的输入
     std::vector<std::vector<char>> imgs_data;
     // file读取
     read_sample(imgs_file, imgs_data);
@@ -160,7 +160,7 @@ void TestSample(YAML::Node &config){
     ego_boxes.clear();
     float time = 0.f;
 
-    // 测试推理
+    // 测试推理，传入图像，输出box位置以及时间
     bevdet.DoInfer(sampleData, ego_boxes, time);
     
     std::vector<Box> lidar_boxes;

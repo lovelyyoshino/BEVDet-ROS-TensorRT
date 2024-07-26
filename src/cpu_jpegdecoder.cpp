@@ -13,7 +13,10 @@ struct jpeg_error_handler {
     struct jpeg_error_mgr pub;
     jmp_buf setjmp_buffer;
 };
-
+/// @brief  讲jpeg数据解码为gpu上的数据
+/// @param buffer 
+/// @param output 
+/// @return 
 int decode_jpeg(const std::vector<char>& buffer, uchar* output)
  {
     struct jpeg_decompress_struct cinfo;
@@ -57,7 +60,12 @@ int decode_jpeg(const std::vector<char>& buffer, uchar* output)
     return EXIT_SUCCESS ;
 }
 
-// 图像数据
+/// @brief 将cpu上的数据转换为gpu上的数据
+/// @param files_data 对应的图像数据
+/// @param out_imgs 输出的图像数据GPU
+/// @param width 图像宽度
+/// @param height 图像高度
+/// @return 
 int decode_cpu(const std::vector<std::vector<char>> &files_data, uchar* out_imgs, size_t width, size_t height) 
 {
     

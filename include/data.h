@@ -36,6 +36,7 @@ struct camParams{
     std::string scene_token;
 };
 
+/// @brief 用于存储图像数据以及对应的图像参数
 struct camsData{
     camsData() = default;
     camsData(const camParams &_param) : param(_param), imgs_dev(nullptr){};

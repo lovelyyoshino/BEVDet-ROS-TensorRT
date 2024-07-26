@@ -72,6 +72,7 @@ __global__ void BEVDecodeObjectKernel(const int map_size,         // 40000
     }
 }
 
+/// @brief 这里使用了初始化列表来初始化类成员变量，这边主要的是输出参数
 PostprocessGPU::PostprocessGPU(const int _class_num, 
                                const float _score_thresh,
                                const float _nms_thresh, 
